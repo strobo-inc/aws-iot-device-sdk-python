@@ -31,7 +31,7 @@ class _shadowRequestToken:
         self._lowercase = string.ascii_lowercase
 
     def getNextToken(self):
-        ret = prefix if prefix else (self._clientID + "_" + self._shadowName)
+        ret = self._prefix if self._prefix else (self._clientID + "_" + self._shadowName)
         ret += "_" + str(self._sequenceNumber) + "_" + self._randomString(5)
         self._sequenceNumber += 1
         return ret
