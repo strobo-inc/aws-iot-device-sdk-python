@@ -23,14 +23,16 @@ from threading import Timer, Lock, Thread
 
 class _shadowRequestToken:
 
-    def __init__(self, srcShadowName, srcClientID):
+    def __init__(self, srcShadowName=None, srcClientID=None, prefix=None):
         self._shadowName = srcShadowName
         self._clientID = srcClientID
+        self._prefix = prefix
         self._sequenceNumber = 0
         self._lowercase = string.ascii_lowercase
 
     def getNextToken(self):
-        ret = self._clientID + "_" + self._shadowName + "_" + str(self._sequenceNumber) + "_" + self._randomString(5)
+        ret = prefix if prefix else (self._clientID + "_" + self._shadowName)
+        ret += "_" + str(self._sequenceNumber) + "_" + self._randomString(5)
         self._sequenceNumber += 1
         return ret
 
@@ -64,17 +66,17 @@ class _basicJSONParser:
 class deviceShadow:
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, srcShadowName, srcIsPersistentSubscribe, srcShadowManager):
+    def __init__(self, srcShadowName, srcIsPersistentSubscribe, srcShadowManager, clientTokenPrefix):
         """
 
         The class that denotes a local/client-side device shadow instance.
 
-        Users can perform shadow operations on this instance to retrieve and modify the 
-        corresponding shadow JSON document in AWS IoT Cloud. The following shadow operations 
+        Users can perform shadow operations on this instance to retrieve and modify the
+        corresponding shadow JSON document in AWS IoT Cloud. The following shadow operations
         are available:
 
         - Get
-        
+
         - Update
 
         - Delete
@@ -83,7 +85,7 @@ class deviceShadow:
 
         - Cancel listening on delta
 
-        This is returned from :code:`AWSIoTPythonSDK.MQTTLib.AWSIoTMQTTShadowClient.createShadowWithName` function call. 
+        This is returned from :code:`AWSIoTPythonSDK.MQTTLib.AWSIoTMQTTShadowClient.createShadowWithName` function call.
         No need to call directly from user scripts.
 
         """
@@ -93,7 +95,10 @@ class deviceShadow:
         # Tool handler
         self._shadowManagerHandler = srcShadowManager
         self._basicJSONParserHandler = _basicJSONParser()
-        self._tokenHandler = _shadowRequestToken(self._shadowName, self._shadowManagerHandler.getClientID())
+        if clientTokenPrefix:
+            self._tokenHandler = _shadowRequestToken(prefix=clientTokenPrefix)
+        else:
+            self._tokenHandler = _shadowRequestToken(self._shadowName, self._shadowManagerHandler.getClientID())
         # Properties
         self._isPersistentSubscribe = srcIsPersistentSubscribe
         self._lastVersionInSync = -1  # -1 means not initialized
@@ -207,10 +212,10 @@ class deviceShadow:
         """
         **Description**
 
-        Retrieve the device shadow JSON document from AWS IoT by publishing an empty JSON document to the 
-        corresponding shadow topics. Shadow response topics will be subscribed to receive responses from 
-        AWS IoT regarding the result of the get operation. Retrieved shadow JSON document will be available 
-        in the registered callback. If no response is received within the provided timeout, a timeout 
+        Retrieve the device shadow JSON document from AWS IoT by publishing an empty JSON document to the
+        corresponding shadow topics. Shadow response topics will be subscribed to receive responses from
+        AWS IoT regarding the result of the get operation. Retrieved shadow JSON document will be available
+        in the registered callback. If no response is received within the provided timeout, a timeout
         notification will be passed into the registered callback.
 
         **Syntax**
@@ -222,12 +227,12 @@ class deviceShadow:
 
         **Parameters**
 
-        *srcCallback* - Function to be called when the response for this shadow request comes back. Should 
-        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the 
-        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted, 
+        *srcCallback* - Function to be called when the response for this shadow request comes back. Should
+        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the
+        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted,
         rejected or is a delta message, :code:`token` is the token used for tracing in this request.
 
-        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout, 
+        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout,
         a timeout notification will be generated and put into the registered callback to notify users.
 
         **Returns**
@@ -263,10 +268,10 @@ class deviceShadow:
         """
         **Description**
 
-        Delete the device shadow from AWS IoT by publishing an empty JSON document to the corresponding 
-        shadow topics. Shadow response topics will be subscribed to receive responses from AWS IoT 
-        regarding the result of the get operation. Responses will be available in the registered callback. 
-        If no response is received within the provided timeout, a timeout notification will be passed into 
+        Delete the device shadow from AWS IoT by publishing an empty JSON document to the corresponding
+        shadow topics. Shadow response topics will be subscribed to receive responses from AWS IoT
+        regarding the result of the get operation. Responses will be available in the registered callback.
+        If no response is received within the provided timeout, a timeout notification will be passed into
         the registered callback.
 
         **Syntax**
@@ -278,12 +283,12 @@ class deviceShadow:
 
         **Parameters**
 
-        *srcCallback* - Function to be called when the response for this shadow request comes back. Should 
-        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the 
-        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted, 
+        *srcCallback* - Function to be called when the response for this shadow request comes back. Should
+        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the
+        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted,
         rejected or is a delta message, :code:`token` is the token used for tracing in this request.
 
-        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout, 
+        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout,
         a timeout notification will be generated and put into the registered callback to notify users.
 
         **Returns**
@@ -319,10 +324,10 @@ class deviceShadow:
         """
         **Description**
 
-        Update the device shadow JSON document string from AWS IoT by publishing the provided JSON 
-        document to the corresponding shadow topics. Shadow response topics will be subscribed to 
-        receive responses from AWS IoT regarding the result of the get operation. Response will be 
-        available in the registered callback. If no response is received within the provided timeout, 
+        Update the device shadow JSON document string from AWS IoT by publishing the provided JSON
+        document to the corresponding shadow topics. Shadow response topics will be subscribed to
+        receive responses from AWS IoT regarding the result of the get operation. Response will be
+        available in the registered callback. If no response is received within the provided timeout,
         a timeout notification will be passed into the registered callback.
 
         **Syntax**
@@ -336,12 +341,12 @@ class deviceShadow:
 
         *srcJSONPayload* - JSON document string used to update shadow JSON document in AWS IoT.
 
-        *srcCallback* - Function to be called when the response for this shadow request comes back. Should 
-        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the 
-        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted, 
+        *srcCallback* - Function to be called when the response for this shadow request comes back. Should
+        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the
+        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted,
         rejected or is a delta message, :code:`token` is the token used for tracing in this request.
 
-        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout, 
+        *srcTimeout* - Timeout to determine whether the request is invalid. When a request gets timeout,
         a timeout notification will be generated and put into the registered callback to notify users.
 
         **Returns**
@@ -382,8 +387,8 @@ class deviceShadow:
         """
         **Description**
 
-        Listen on delta topics for this device shadow by subscribing to delta topics. Whenever there 
-        is a difference between the desired and reported state, the registered callback will be called 
+        Listen on delta topics for this device shadow by subscribing to delta topics. Whenever there
+        is a difference between the desired and reported state, the registered callback will be called
         and the delta payload will be available in the callback.
 
         **Syntax**
@@ -395,9 +400,9 @@ class deviceShadow:
 
         **Parameters**
 
-        *srcCallback* - Function to be called when the response for this shadow request comes back. Should 
-        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the 
-        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted, 
+        *srcCallback* - Function to be called when the response for this shadow request comes back. Should
+        be in form :code:`customCallback(payload, responseStatus, token)`, where :code:`payload` is the
+        JSON document returned, :code:`responseStatus` indicates whether the request has been accepted,
         rejected or is a delta message, :code:`token` is the token used for tracing in this request.
 
         **Returns**
@@ -417,8 +422,8 @@ class deviceShadow:
         """
         **Description**
 
-        Cancel listening on delta topics for this device shadow by unsubscribing to delta topics. There will 
-        be no delta messages received after this API call even though there is a difference between the 
+        Cancel listening on delta topics for this device shadow by unsubscribing to delta topics. There will
+        be no delta messages received after this API call even though there is a difference between the
         desired and reported state.
 
         **Syntax**
